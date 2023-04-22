@@ -157,7 +157,7 @@ class CoreServicesImpl with CoreServices {
       onCallback = onTUIKitCallbackListener;
     }
     setGlobalConfig(config);
-    if (PlatformUtils().isIOS || PlatformUtils().isAndroid) {
+    if (!PlatformUtils().isWeb) {
       didLoginSuccess();
     }
   }
@@ -251,8 +251,8 @@ class CoreServicesImpl with CoreServices {
       }
 
       tuiFriendShipViewModel.userStatusList = currentUserStatusList;
+    // ignore: empty_catches
     } catch (e) {
-      print(e);
     }
   }
 
@@ -265,7 +265,7 @@ class CoreServicesImpl with CoreServices {
     _userSig = userSig;
     V2TimCallback result = await TencentImSDKPlugin.v2TIMManager
         .login(userID: userID, userSig: userSig);
-    if (PlatformUtils().isIOS || PlatformUtils().isAndroid) {
+    if (!PlatformUtils().isWeb) {
       didLoginSuccess();
     }
     if (result.code != 0) {

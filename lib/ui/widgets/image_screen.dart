@@ -1,12 +1,7 @@
-import 'dart:convert';
 import 'dart:math';
-import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:extended_image/extended_image.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_state.dart';
@@ -14,10 +9,6 @@ import 'package:tencent_cloud_chat_uikit/ui/widgets/center_loading.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/gestured_image.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_base.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/image_hero.dart';
-// import 'package:image/image.dart' as img;
-// import 'package:zxing2/qrcode.dart';
-
-var DoubleImageLongPressListener = (ImageProvider<Object> image) {};
 
 typedef DoubleClickAnimationListener = void Function();
 
@@ -62,10 +53,6 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
     Navigator.pop(context);
   }
 
-  void imageLongPress() async {
-    DoubleImageLongPressListener(widget.imageProvider);
-  }
-
   @override
   void initState() {
     super.initState();
@@ -99,7 +86,9 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
             constraints: BoxConstraints.expand(
               height: MediaQuery.of(context).size.height,
             ),
-            child: Stack(alignment: Alignment.center, children: [
+            child: Stack(
+              alignment: Alignment.center,
+                children: [
               Positioned(
                 top: 0,
                 left: 0,
@@ -133,7 +122,6 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
                   },
                   child: GestureDetector(
                     onTap: close,
-                    onLongPress: imageLongPress,
                     child: ExtendedImageGesturePageView.builder(
                         scrollDirection: Axis.horizontal,
                         controller: ExtendedPageController(
@@ -281,7 +269,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
                         isLoading = true;
                       });
                       await widget.downloadFn!();
-                      Future.delayed(const Duration(milliseconds: 200), () {
+                      Future.delayed(const Duration(milliseconds: 200),(){
                         setState(() {
                           isLoading = false;
                         });

@@ -3,6 +3,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/permission.dart';
 import 'package:tencent_open_file/tencent_open_file.dart';
@@ -14,6 +15,7 @@ import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_state.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/separate_models/tui_chat_separate_view_model.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_chat_global_model.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
+
 import 'package:tencent_cloud_chat_uikit/ui/utils/platform.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/TIMUIKitMessageReaction/tim_uikit_message_reaction_wrapper.dart';
 import 'package:tencent_cloud_chat_uikit/ui/views/TIMUIKitChat/TIMUIKitMessageItem/tim_uikit_chat_file_icon.dart';
@@ -127,22 +129,56 @@ class _TIMUIKitFileElemState extends TIMUIKitState<TIMUIKitFileElem> {
   }
 
   downloadFile(TUITheme theme) async {
-    if (!await Permissions.checkPermission(
-        context, Permission.storage.value, theme)) {
-      return;
+    if (PlatformUtils().isIOS) {
+      if (!await Permissions.checkPermission(
+          context, Permission.photosAddOnly.value, theme!, false)) {
+        return;
+      }
+    } else {
+      final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+      AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+      if ((androidInfo.version.sdkInt ?? 0) >= 33) {
+      } else {
+        var storage = await Permissions.checkPermission(
+          context, Permission.storage.value,
+        );
+        if(!storage){
+          return;
+        }
+      }
     }
     await model.downloadFile();
   }
 
   tryOpenFile(context, theme) async {
-    if (!await Permissions.checkPermission(
-        context, Permission.storage.value, theme)) {
-      return;
+    if (PlatformUtils().isIOS) {
+      if (!await Permissions.checkPermission(
+          context, Permission.photosAddOnly.value, theme!, false)) {
+        return;
+      }
+    } else {
+      final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+      AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+      if ((androidInfo.version.sdkInt ?? 0) >= 33) {
+      } else {
+        var storage = await Permissions.checkPermission(
+          context, Permission.storage.value,
+        );
+        if(!storage){
+          return;
+        }
+      }
     }
+
+
     try {
-      OpenFile.open(filePath);
+      if(PlatformUtils().isDesktop){
+        launchUrl(Uri.file(filePath));
+      }else{
+        OpenFile.open(filePath);
+      }
+    // ignore: empty_catches
     } catch (e) {
-      print(e);
     }
   }
 

@@ -11,30 +11,25 @@ class LinkPreviewEntry {
   static LinkPreviewText? getHyperlinksText(
       String messageText, bool isMarkdown,
       [Function(String)? onLinkTap,
-      bool isUseDefaultEmoji = false,
-      List customEmojiStickerList = const []]) {
-
-    if (messageText == null) {
-      return null;
-    }
-
+        bool isUseDefaultEmoji = false,
+        List customEmojiStickerList = const []]) {
     return ({TextStyle? style}) {
       return isMarkdown
           ? LinkTextMarkdown(
-              messageText: messageText, style: style, onLinkTap: onLinkTap)
+          messageText: messageText, style: style, onLinkTap: onLinkTap)
           : LinkText(
-              messageText: messageText,
-              style: style,
-              onLinkTap: onLinkTap,
-              isUseDefaultEmoji: isUseDefaultEmoji,
-              customEmojiStickerList: customEmojiStickerList);
+          messageText: messageText,
+          style: style,
+          onLinkTap: onLinkTap,
+          isUseDefaultEmoji: isUseDefaultEmoji,
+          customEmojiStickerList: customEmojiStickerList);
     };
   }
 
   /// get the [LinkPreviewContent] with preview widget and website information for the first link.
   /// If you provide `onUpdateMessage(String linkInfoJson)`, it can save the link info to local custom data than call updating the message on UI automatically.
   static Future<LinkPreviewContent?> getFirstLinkPreviewContent(
-      {required V2TimMessage message, VoidCallback? onUpdateMessage}) async {
+      {required V2TimMessage message, ValueChanged<V2TimMessage>? onUpdateMessage}) async {
     final String? messageText = message.textElem?.text;
     if (messageText == null) {
       return null;
@@ -46,7 +41,7 @@ class LinkPreviewEntry {
     }
 
     final List<LocalCustomDataModel?> previewItemList =
-        await LinkUtils.getURLPreview([urlMatches[0]]);
+    await LinkUtils.getURLPreview([urlMatches[0]]);
     if (previewItemList.isNotEmpty) {
       final LocalCustomDataModel previewItem = previewItemList.first!;
       if (onUpdateMessage != null) {
@@ -75,13 +70,13 @@ class LinkPreviewEntry {
     }
 
     final List<LocalCustomDataModel> previewItemList =
-        await LinkUtils.getURLPreview([urlMatches[0]]);
+    await LinkUtils.getURLPreview([urlMatches[0]]);
     if (previewItemList.isNotEmpty) {
       final List<LinkPreviewContent?> resultList = previewItemList
           .map((e) => LinkPreviewContent(
-                linkInfo: e,
-                linkPreviewWidget: LinkPreviewWidget(linkPreview: e),
-              ))
+        linkInfo: e,
+        linkPreviewWidget: LinkPreviewWidget(linkPreview: e),
+      ))
           .toList();
 
       return resultList;
@@ -93,22 +88,4 @@ class LinkPreviewEntry {
   static String linkInfoToString(LocalCustomDataModel linkInfo) {
     return linkInfo.toString();
   }
-
-  // static LinkPreviewModel? linkInfoFromString(String linkInfoString){
-  //   final Map<String, dynamic> data = json.decode(linkInfoString);
-  //   LinkPreviewModel linkPreview = LinkPreviewModel(
-  //       url: data['url'],
-  //       image: data['image'],
-  //       title: data['title'],
-  //       description: data['description']
-  //   );
-  //   return isLinkInfoEmpty(linkPreview) ? null : linkPreview;
-  // }
-  //
-  // static bool isLinkInfoEmpty(LinkPreviewModel linkInfo){
-  //   if(linkInfo.image == null && linkInfo.title == null && linkInfo.description == null){
-  //     return true;
-  //   }
-  //   return false;
-  // }
 }

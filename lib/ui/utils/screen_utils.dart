@@ -2,20 +2,40 @@
 
 import 'package:flutter/cupertino.dart';
 
-enum ScreenType { Desktop, Tablet, Handset, Watch }
+enum ScreenType { Wide, Narrow }
 
 class FormFactor {
   static double desktop = 900;
-  static double tablet = 600;
   static double handset = 300;
 }
 
-class ScreenUtils {
-  static ScreenType getFormFactor(BuildContext context) {
-    double deviceWidth = MediaQuery.of(context).size.shortestSide;
-    if (deviceWidth > FormFactor.desktop) return ScreenType.Desktop;
-    if (deviceWidth > FormFactor.tablet) return ScreenType.Tablet;
-    if (deviceWidth > FormFactor.handset) return ScreenType.Handset;
-    return ScreenType.Watch;
+class TUIKitScreenUtils {
+  static ScreenType? screenType;
+
+  static ScreenType getFormFactor([BuildContext? context]) {
+    if (screenType != null) return screenType!;
+
+    if(context != null){
+      double deviceWidth = MediaQuery.of(context).size.width;
+      double deviceHeight = MediaQuery.of(context).size.height;
+
+      if (deviceWidth > FormFactor.desktop || deviceWidth > deviceHeight * 1.1) {
+        screenType = ScreenType.Wide;
+      } else if (deviceWidth > FormFactor.handset) {
+        screenType = ScreenType.Narrow;
+      }
+      return screenType ?? ScreenType.Narrow;
+    }else{
+      return ScreenType.Narrow;
+    }
+  }
+
+  static Widget getDeviceWidget({
+    required Widget defaultWidget,
+    Widget? wideWidget,
+    Widget? narrowWidget,
+  }) {
+    if (screenType == ScreenType.Wide) return wideWidget ?? defaultWidget;
+    return narrowWidget ?? defaultWidget;
   }
 }

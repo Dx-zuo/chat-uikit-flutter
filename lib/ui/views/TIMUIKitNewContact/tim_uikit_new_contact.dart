@@ -4,6 +4,7 @@ import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_state.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/life_cycle/new_contact_life_cycle.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_friendship_view_model.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/screen_utils.dart';
 import 'package:tencent_im_base/tencent_im_base.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_base.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/avatar.dart';
@@ -54,104 +55,115 @@ class _TIMUIKitNewContactState extends TIMUIKitState<TIMUIKitNewContact> {
     final theme = Provider.of<TUIThemeViewModel>(context).theme;
     final showName = _getShowName(applicationInfo);
     final faceUrl = applicationInfo.faceUrl ?? "";
-    return Container(
-      padding: const EdgeInsets.only(top: 10, left: 16),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.only(bottom: 12),
-            margin: const EdgeInsets.only(right: 12),
-            child: SizedBox(
-              height: 40,
-              width: 40,
-              child: Avatar(faceUrl: faceUrl, showName: showName),
-            ),
-          ),
-          Expanded(
-              child: Container(
-            padding: const EdgeInsets.only(top: 10, bottom: 20),
-            decoration: BoxDecoration(
-                border: Border(
-                    bottom: BorderSide(
-                        color: theme.weakDividerColor ??
-                            CommonColor.weakDividerColor))),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  showName,
-                  style: const TextStyle(color: Colors.black, fontSize: 18),
+    final isWideScreen = TUIKitScreenUtils.getFormFactor(context) == ScreenType.Wide;
+
+    return Material(
+      color: theme.wideBackgroundColor,
+      child: InkWell(
+        onTap: (){},
+        child: Container(
+          padding:  EdgeInsets.only(top: isWideScreen ? 6 : 10, left: 16, right: isWideScreen ? 16 : 0),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.only(bottom: isWideScreen ? 10 : 12),
+                margin: const EdgeInsets.only(right: 12),
+                child: SizedBox(
+                  height: isWideScreen ? 30 : 40,
+                  width: isWideScreen ? 30 : 40,
+                  child: Avatar(faceUrl: faceUrl, showName: showName),
                 ),
-                Expanded(child: Container()),
-                Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  child: InkWell(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          color: theme.primaryColor,
-                          border: Border.all(
-                              width: 1,
-                              color: theme.weakTextColor ??
-                                  CommonColor.weakTextColor)),
-                      child: Text(
-                        TIM_t("同意"),
-                        style: const TextStyle(
-                          color: Colors.white,
+              ),
+              Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.only(top: 10, bottom: 20),
+                    decoration: BoxDecoration(
+                        border: Border(
+                            bottom: BorderSide(
+                                color: theme.weakDividerColor ??
+                                    CommonColor.weakDividerColor))),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          showName,
+                          style: TextStyle(color: Colors.black, fontSize: isWideScreen ? 14 : 18),
                         ),
-                      ),
-                    ),
-                    onTap: () async {
-                      await model.acceptFriendApplication(
-                        applicationInfo.userID,
-                        applicationInfo.type,
-                      );
-                      model.loadData();
-                      if (widget.onAccept != null) {
-                        widget.onAccept!(applicationInfo);
-                      }
-                      // widget?.onAccept();
-                    },
-                  ),
-                ),
-                Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    child: InkWell(
-                      child: Container(
-                        decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            color: Colors.white,
-                            border: Border.all(
-                                width: 1,
-                                color: theme.weakTextColor ??
-                                    CommonColor.weakTextColor)),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 6),
-                        child: Text(
-                          TIM_t("拒绝"),
-                          style: TextStyle(
-                            color: theme.primaryColor,
+                        Expanded(child: Container()),
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          child: InkWell(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 6),
+                              decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  color: theme.primaryColor,
+                                  border: Border.all(
+                                      width: 1,
+                                      color: theme.weakTextColor ??
+                                          CommonColor.weakTextColor)),
+                              child: Text(
+                                TIM_t("同意"),
+                                style:  TextStyle(
+                                  color: Colors.white,
+                                  fontSize: isWideScreen ? 12 : null,
+                                ),
+                              ),
+                            ),
+                            onTap: () async {
+                              await model.acceptFriendApplication(
+                                applicationInfo.userID,
+                                applicationInfo.type,
+                              );
+                              model.loadData();
+                              if (widget.onAccept != null) {
+                                widget.onAccept!(applicationInfo);
+                              }
+                              // widget?.onAccept();
+                            },
                           ),
                         ),
-                      ),
-                      onTap: () async {
-                        await model.refuseFriendApplication(
-                          applicationInfo.userID,
-                          applicationInfo.type,
-                        );
-                        model.loadData();
-                        if (widget.onRefuse != null) {
-                          widget.onRefuse!(applicationInfo);
-                        }
-                        // refuse(context);
-                      },
-                    ))
-              ],
-            ),
-          ))
-        ],
+                        Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            child: InkWell(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    color: Colors.white,
+                                    border: Border.all(
+                                        width: 1,
+                                        color: theme.weakTextColor ??
+                                            CommonColor.weakTextColor)
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 6),
+                                child: Text(
+                                  TIM_t("拒绝"),
+                                  style: TextStyle(
+                                    color: theme.primaryColor,
+                                    fontSize: isWideScreen ? 12 : null,
+                                  ),
+                                ),
+                              ),
+                              onTap: () async {
+                                await model.refuseFriendApplication(
+                                  applicationInfo.userID,
+                                  applicationInfo.type,
+                                );
+                                model.loadData();
+                                if (widget.onRefuse != null) {
+                                  widget.onRefuse!(applicationInfo);
+                                }
+                                // refuse(context);
+                              },
+                            ))
+                      ],
+                    ),
+                  ))
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -160,10 +172,6 @@ class _TIMUIKitNewContactState extends TIMUIKitState<TIMUIKitNewContact> {
     return widget.itemBuilder ?? _itemBuilder;
   }
 
-  @override
-  void initState() {
-    super.initState();
-  }
 
   @override
   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {

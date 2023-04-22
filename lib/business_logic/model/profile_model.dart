@@ -4,8 +4,5 @@ class UserProfile {
   late V2TimFriendInfo? friendInfo;
   late V2TimConversation? conversation;
 
-  UserProfile(
-      {required this.friendInfo,
-      required this.conversation,
-      required String userID});
+  UserProfile({required this.friendInfo, required this.conversation});
 }

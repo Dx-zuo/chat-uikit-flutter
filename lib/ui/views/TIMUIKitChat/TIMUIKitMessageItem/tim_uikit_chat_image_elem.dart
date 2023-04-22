@@ -39,7 +39,7 @@ class TIMUIKitImageElem extends StatefulWidget {
   final String? isFrom;
   final bool? isShowMessageReaction;
   final TUIChatSeparateViewModel chatModel;
-
+  final GestureTapCallback? onTap;
   const TIMUIKitImageElem(
       {required this.message,
       this.isShowJump = false,
@@ -47,7 +47,8 @@ class TIMUIKitImageElem extends StatefulWidget {
       this.clearJump,
       this.isFrom,
       Key? key,
-      this.isShowMessageReaction})
+      this.isShowMessageReaction, 
+      this.onTap})
       : super(key: key);
 
   @override
@@ -346,6 +347,10 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem> {
         getImage(
             GestureDetector(
                 onTap: () {
+                  if (widget.onTap != null) {
+                    widget.onTap!();
+                    return;
+                  }
                   if (PlatformUtils().isDesktop) {
                     launchUrl(Uri.file(showImage));
                   } else {

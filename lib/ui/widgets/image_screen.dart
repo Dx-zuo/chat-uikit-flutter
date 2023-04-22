@@ -18,6 +18,7 @@ class ImageScreen extends StatefulWidget {
       required this.heroTag,
       this.downloadFn,
       this.messageID,
+      this.onLongPress,
       Key? key})
       : super(key: key);
 
@@ -25,7 +26,7 @@ class ImageScreen extends StatefulWidget {
   final String heroTag;
   final String? messageID;
   final Future<void> Function()? downloadFn;
-
+  final GestureTapCallback? onLongPress;
   @override
   State<StatefulWidget> createState() {
     return _ImageScreenState();
@@ -86,9 +87,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
             constraints: BoxConstraints.expand(
               height: MediaQuery.of(context).size.height,
             ),
-            child: Stack(
-              alignment: Alignment.center,
-                children: [
+            child: Stack(alignment: Alignment.center, children: [
               Positioned(
                 top: 0,
                 left: 0,
@@ -122,6 +121,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
                   },
                   child: GestureDetector(
                     onTap: close,
+                    onLongPress: widget.onLongPress,
                     child: ExtendedImageGesturePageView.builder(
                         scrollDirection: Axis.horizontal,
                         controller: ExtendedPageController(
@@ -269,7 +269,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
                         isLoading = true;
                       });
                       await widget.downloadFn!();
-                      Future.delayed(const Duration(milliseconds: 200),(){
+                      Future.delayed(const Duration(milliseconds: 200), () {
                         setState(() {
                           isLoading = false;
                         });

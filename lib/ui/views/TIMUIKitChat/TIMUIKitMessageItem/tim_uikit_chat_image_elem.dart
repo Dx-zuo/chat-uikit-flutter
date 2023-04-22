@@ -39,7 +39,7 @@ class TIMUIKitImageElem extends StatefulWidget {
   final String? isFrom;
   final bool? isShowMessageReaction;
   final TUIChatSeparateViewModel chatModel;
-  final GestureTapCallback? onTap;
+  final GestureTapCallback? onLongPress;
   const TIMUIKitImageElem(
       {required this.message,
       this.isShowJump = false,
@@ -47,8 +47,8 @@ class TIMUIKitImageElem extends StatefulWidget {
       this.clearJump,
       this.isFrom,
       Key? key,
-      this.isShowMessageReaction, 
-      this.onTap})
+      this.isShowMessageReaction,
+      this.onLongPress})
       : super(key: key);
 
   @override
@@ -347,10 +347,6 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem> {
         getImage(
             GestureDetector(
                 onTap: () {
-                  if (widget.onTap != null) {
-                    widget.onTap!();
-                    return;
-                  }
                   if (PlatformUtils().isDesktop) {
                     launchUrl(Uri.file(showImage));
                   } else {
@@ -358,12 +354,14 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem> {
                       PageRouteBuilder(
                         opaque: false, // set to false
                         pageBuilder: (_, __, ___) => ImageScreen(
-                            imageProvider: FileImage(File(showImage)),
-                            heroTag: heroTag,
-                            messageID: widget.message.msgID,
-                            downloadFn: () async {
-                              return await _saveImg(theme!);
-                            }),
+                          imageProvider: FileImage(File(showImage)),
+                          heroTag: heroTag,
+                          messageID: widget.message.msgID,
+                          downloadFn: () async {
+                            return await _saveImg(theme!);
+                          },
+                          onLongPress: widget?.onLongPress,
+                        ),
                       ),
                     );
                   }
@@ -465,7 +463,8 @@ class _TIMUIKitImageElem extends TIMUIKitState<TIMUIKitImageElem> {
                             messageID: widget.message.msgID,
                             downloadFn: () async {
                               return await _saveImg(theme!);
-                            })),
+                            },
+                            onLongPress: widget.onLongPress)),
                   );
                 },
                 child: Container(

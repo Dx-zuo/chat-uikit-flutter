@@ -21,7 +21,7 @@ import 'package:tencent_cloud_chat_uikit/ui/widgets/customize_ball_pulse_header.
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_base.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/wide_popup.dart';
 
-typedef ConversationItemBuilder = Widget Function(
+typedef ConversationItemBuilder = Widget? Function(
     V2TimConversation conversationItem,
     [V2TimUserStatus? onlineStatus]);
 
@@ -68,6 +68,8 @@ class TIMUIKitConversation extends StatefulWidget {
   /// to meet the identifier shows here.
   final bool isShowDraft;
 
+  final ConversationItemBuilder? avatarBuilder;
+
   const TIMUIKitConversation(
       {Key? key,
       this.lifeCycle,
@@ -80,6 +82,7 @@ class TIMUIKitConversation extends StatefulWidget {
       this.conversationCollector,
       this.emptyBuilder,
       this.lastMessageBuilder,
+      this.avatarBuilder,
       this.isShowOnlineStatus = true})
       : super(key: key);
 
@@ -385,6 +388,10 @@ class _TIMUIKitConversationState extends TIMUIKitState<TIMUIKitConversation> {
                                 isDisturb: conversationItem.recvOpt != 0,
                                 lastMsg: conversationItem.lastMessage,
                                 isPined: isPined,
+                                avater: widget.avatarBuilder != null
+                                    ? widget.avatarBuilder!(
+                                        conversationItem!, onlineStatus)
+                                    : null,
                                 groupAtInfoList:
                                     conversationItem.groupAtInfoList ?? [],
                                 unreadCount: conversationItem.unreadCount ?? 0,

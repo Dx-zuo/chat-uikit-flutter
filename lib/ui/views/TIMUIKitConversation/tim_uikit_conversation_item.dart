@@ -30,6 +30,7 @@ class TIMUIKitConversationItem extends TIMUIKitStatelessWidget {
   final V2TimUserStatus? onlineStatus;
   final int? convType;
   final bool isCurrent;
+  final Widget? avater;
 
   /// Control if shows the identifier that the conversation has a draft text, inputted in previous.
   /// Also, you'd better specifying the `draftText` field for `TIMUIKitChat`, from the `draftText` in `V2TimConversation`,
@@ -52,10 +53,12 @@ class TIMUIKitConversationItem extends TIMUIKitStatelessWidget {
     this.draftTimestamp,
     this.lastMessageBuilder,
     this.convType,
+    this.avater,
   }) : super(key: key);
 
   Widget _getShowMsgWidget(BuildContext context) {
-    final isDesktopScreen = TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
+    final isDesktopScreen =
+        TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
     if (isShowDraft && draftText != null && draftText != "") {
       return TIMUIKitDraftText(
         context: context,
@@ -108,7 +111,8 @@ class TIMUIKitConversationItem extends TIMUIKitStatelessWidget {
   @override
   Widget tuiBuild(BuildContext context, TUIKitBuildValue value) {
     final TUITheme theme = value.theme;
-    final isDesktopScreen = TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
+    final isDesktopScreen =
+        TUIKitScreenUtils.getFormFactor(context) == DeviceType.Desktop;
     return Container(
       padding: const EdgeInsets.only(top: 6, bottom: 6, left: 16, right: 16),
       decoration: BoxDecoration(
@@ -132,11 +136,16 @@ class TIMUIKitConversationItem extends TIMUIKitStatelessWidget {
                 fit: StackFit.expand,
                 clipBehavior: Clip.none,
                 children: [
-                  Avatar(
-                      onlineStatus: onlineStatus,
-                      faceUrl: faceUrl,
-                      showName: nickName,
-                      type: convType),
+                  if (avater != null)
+                    Positioned(
+                      child: avater!,
+                    )
+                  else
+                    Avatar(
+                        onlineStatus: onlineStatus,
+                        faceUrl: faceUrl,
+                        showName: nickName,
+                        type: convType),
                   if (unreadCount != 0)
                     Positioned(
                       top: isDisturb ? -2.5 : -4.5,

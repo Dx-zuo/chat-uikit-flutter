@@ -1,3 +1,24 @@
+## 2.1.0+2
+
+### Improvements
+
+* Upgraded several dependencies to resolve conflicts with the Kotlin Gradle plugin.
+
+### Bug Fixes
+
+* Fixed an issue causing the message list to be displayed inaccurately when it contains a file without a suffix.
+
+## 2.1.0+1
+
+### Improvements
+
+* Removed `disk_space` dependency as many customers reported difficulty in obtaining this dependency successfully.
+* Replaced `fc_native_video_thumbnail_for_us` with its original version `fc_native_video_thumbnail`.
+
+### Bug Fixes
+
+* Fixed an issue where `universal_html` could be blocking the compilation.
+
 ## 2.1.0
 
 ### Breaking Changes

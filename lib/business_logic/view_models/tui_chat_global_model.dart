@@ -15,6 +15,8 @@ import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
 import 'package:tencent_cloud_chat_uikit/ui/constants/history_message_constant.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/message.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/logger.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/platform.dart';
 
 enum ConvType { none, c2c, group }
 
@@ -102,8 +104,12 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
 
   Map<String, String> get currentDownLoad => _waitingDownloadList.first;
 
+  int getWaitingListLength() {
+    return _waitingDownloadList.length;
+  }
+
   void addWaitingList(String msgID) {
-    print("add to waiting list success");
+    outputLogger.i("add to waiting list success");
     bool contains = false;
     for (Map<String, String> element in _waitingDownloadList) {
       String msgIDItem = element["msgID"] ?? "";
@@ -141,7 +147,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
       isSnapshot: false,
     );
 
-    print("start another download");
+    outputLogger.i("start another download");
   }
 
   int getReceived(msgID) {
@@ -340,37 +346,6 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     }
   }
 
-  Future<bool> refreshCurrentHistoryListForConversation(
-      {HistoryMsgGetTypeEnum getType =
-          HistoryMsgGetTypeEnum.V2TIM_GET_CLOUD_OLDER_MSG,
-      int lastMsgSeq = -1,
-      required int count,
-      String? lastMsgID,
-      required String convID,
-      required ConvType convType}) async {
-    final currentHistoryMsgList = messageListMap[convID];
-    final response = await _messageService.getHistoryMessageList(
-        count: count,
-        getType: getType,
-        userID: convType == ConvType.c2c ? convID : null,
-        groupID: convType == ConvType.group ? convID : null,
-        lastMsgID: lastMsgID,
-        lastMsgSeq: lastMsgSeq);
-    if (lastMsgID != null && currentHistoryMsgList != null) {
-      final newList = [...currentHistoryMsgList, ...response];
-      final List<V2TimMessage> msgList =
-          await _lifeCycle?.didGetHistoricalMessageList(newList) ?? newList;
-      setMessageList(convID, msgList);
-    } else {
-      final List<V2TimMessage> messageList =
-          await _lifeCycle?.didGetHistoricalMessageList(response) ?? response;
-      setMessageList(convID, messageList);
-      // The messages in first screen
-    }
-    notifyListeners();
-    return true;
-  }
-
   clearData() {
     _messageListMap.clear();
     _currentConversationList.clear();
@@ -411,10 +386,10 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
             _preloadImageMap[msgItem.seq! +
                 msgItem.timestamp.toString() +
                 (msgItem.msgID ?? "")] = tempImg;
-            print("cacheImage ${msgItem.msgID}");
+            outputLogger.i("cacheImage ${msgItem.msgID}");
           }));
         } catch (e) {
-          print("cacheImage error ${msgItem.msgID}");
+          outputLogger.i("cacheImage error ${msgItem.msgID}");
         }
       }
     }
@@ -438,7 +413,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
         String msgIDItem = element["msgID"] ?? "";
         if (msgIDItem.isNotEmpty) {
           if (msgID == msgIDItem) {
-            print("remove download");
+            outputLogger.i("remove download");
             return true;
           }
         }
@@ -726,36 +701,84 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
   }
 
   _onSendMessageProgress(V2TimMessage messagae, int progress) {
-    print("message progress: $progress");
+    outputLogger.i("message progress: $progress");
   }
 
-  onMessageDownloadProgressCallback(
+  Future<void> onMessageDownloadProgressCallback(
       V2TimMessageDownloadProgress messageProgress) async {
-    if (messageProgress.isFinish) {
-      setMessageProgress(messageProgress.msgID, 100);
-      setFileMessageLocation(messageProgress.msgID, messageProgress.path);
-      downloadFile();
-      if (messageProgress.type == 0) {
-        final messages = await _messageService
-            .findMessages(messageIDList: [messageProgress.msgID]);
-        final V2TimMessage? message = messages?.first;
-        if (message != null) {
-          updateAsyncMessage(
-              message,
-              TencentUtils.checkString(message.userID) ??
-                  TencentUtils.checkString(message.groupID) ??
-                  "");
-        }
-      }
+    outputLogger.i(messageProgress.toJson());
+    final currentProgress = getMessageProgress(messageProgress.msgID);
+
+    if (messageProgress.isFinish && currentProgress < 100) {
+      V2TimMessage? message =
+          await _findAndRetrieveMessage(messageProgress.msgID);
+      _handleFinishedDownload(messageProgress, message);
       return;
     }
-    if (messageProgress.totalSize != -1) {
-      int progress =
-          (messageProgress.currentSize / messageProgress.totalSize * 100)
-              .ceil();
-      if (progress > 1) {
-        setMessageProgress(messageProgress.msgID, progress);
+
+    _updateProgressIfNeeded(messageProgress, currentProgress);
+  }
+
+  Future<V2TimMessage?> _findAndRetrieveMessage(String messageId) async {
+    final messages =
+        await _messageService.findMessages(messageIDList: [messageId]);
+    return messages?.first;
+  }
+
+  void _handleFinishedDownload(
+      V2TimMessageDownloadProgress messageProgress, V2TimMessage? message) {
+    if (message != null) {
+      bool isImageType =
+          message.elemType == MessageElemType.V2TIM_ELEM_TYPE_IMAGE;
+      bool isVideoType =
+          message.elemType == MessageElemType.V2TIM_ELEM_TYPE_VIDEO;
+      final originalImageType = PlatformUtils().isIOS ? 1 : 0;
+      if (!isImageType && !isVideoType) {
+        _updateMessageLocationAndDownloadFile(messageProgress);
+      } else if ((isImageType && messageProgress.type == originalImageType) ||
+          isVideoType) {
+        Future.delayed(const Duration(seconds: 1),
+            () => _updateMessageAndDownloadFile(message, messageProgress));
+      } else {
+        return;
       }
+    } else {
+      _updateMessageLocationAndDownloadFile(messageProgress);
+    }
+  }
+
+  void _updateMessageAndDownloadFile(
+      V2TimMessage message, V2TimMessageDownloadProgress messageProgress) {
+    updateAsyncMessage(
+        message,
+        TencentUtils.checkString(message.userID) ??
+            TencentUtils.checkString(message.groupID) ??
+            "");
+
+    _updateMessageLocationAndDownloadFile(messageProgress);
+  }
+
+  void _updateMessageLocationAndDownloadFile(
+      V2TimMessageDownloadProgress messageProgress) {
+    setFileMessageLocation(messageProgress.msgID, messageProgress.path);
+    setMessageProgress(messageProgress.msgID, 100);
+    downloadFile();
+  }
+
+  void _updateProgressIfNeeded(
+      V2TimMessageDownloadProgress messageProgress, int currentProgress) {
+    try {
+      if (messageProgress.totalSize != -1 && !messageProgress.isFinish) {
+        int progress = min(
+            99,
+            (messageProgress.currentSize / messageProgress.totalSize * 100)
+                .floor());
+        if (progress > 1 && progress > currentProgress) {
+          setMessageProgress(messageProgress.msgID, progress);
+        }
+      }
+    } catch (e) {
+      outputLogger.i("calculate error: ${messageProgress.toJson()}");
     }
   }
 
@@ -846,7 +869,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
 
     textMessageInfo = await _messageService.createTextAtMessage(
         text: text +
-            " @${TencentUtils.checkString(messageBeenReplied.nickName) ?? TencentUtils.checkString(messageBeenReplied.sender) ?? TencentUtils.checkString(messageBeenReplied.userID)}",
+            "\n@${TencentUtils.checkString(messageBeenReplied.nickName) ?? TencentUtils.checkString(messageBeenReplied.sender) ?? TencentUtils.checkString(messageBeenReplied.userID)}",
         atUserList: [
           TencentUtils.checkString(messageBeenReplied.sender) ??
               TencentUtils.checkString(messageBeenReplied.userID) ??
@@ -857,7 +880,8 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
 
     if (messageInfo != null) {
       final messageInfoWithSender = messageInfo.sender == null
-          ? tools.setUserInfoForMessage(messageInfo, messageInfo.id ?? textMessageInfo.id ?? "")
+          ? tools.setUserInfoForMessage(
+              messageInfo, messageInfo.id ?? textMessageInfo.id ?? "")
           : messageInfo;
 
       final hasNickName = messageBeenReplied.nickName != null &&
@@ -985,6 +1009,9 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
     if (isEditStatusMessage == false) {
       updateMessage(sendMsgRes, convID, id, convType, groupType, setInputField);
     }
+    if (_lifeCycle?.messageDidSend != null) {
+      _lifeCycle!.messageDidSend(sendMsgRes);
+    }
 
     return sendMsgRes;
   }
@@ -1068,7 +1095,8 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
   }
 
   List<V2TimMessage>? getMessageList(String conversationID) {
-    final list = messageListMap[conversationID]?.reversed.toList() ?? [];
+    final list = (messageListMap[conversationID]?.reversed.toList() ?? [])
+        .where((element) => _lifeCycle?.messageShouldMount(element) ?? true);
     final List<V2TimMessage> listWithTimestamp = [];
     final interval = chatConfig.timeDividerConfig?.timeInterval ?? 300;
     for (var item in list) {
@@ -1093,6 +1121,7 @@ class TUIChatGlobalModel extends ChangeNotifier implements TIMUIKitClass {
       }
     }
     final returnValue = listWithTimestamp.reversed.toList();
+    outputLogger.i(returnValue.map((e) => e.toJson()).toList().toString());
     return returnValue;
   }
 

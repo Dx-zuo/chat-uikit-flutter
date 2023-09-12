@@ -1,7 +1,10 @@
 // ignore_for_file: avoid_print
 
+import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_setting_model.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/common_utils.dart';
+import 'package:tencent_cloud_chat_uikit/ui/utils/logger.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/screen_utils.dart';
 import 'package:tencent_im_base/tencent_im_base.dart';
 import 'package:tencent_cloud_chat_uikit/business_logic/listener_model/tui_group_listener_model.dart';
@@ -87,9 +90,13 @@ class CoreServicesImpl implements CoreServices {
       /// Specify the current device platform, mobile or desktop, based on your needs.
       /// TUIKit will automatically determine the platform if no specification is provided. DeviceType? platform,
       DeviceType? platform,
+      String? uikitLogPath,
       VoidCallback? onWebLoginSuccess}) async {
     if (platform != null) {
       TUIKitScreenUtils.deviceType = platform;
+    }
+    if (TencentUtils.checkString(uikitLogPath) != null) {
+      logOutputGenerator(uikitLogPath!);
     }
     addIdentifier();
     if (extraLanguage != null) {
@@ -202,7 +209,7 @@ class CoreServicesImpl implements CoreServices {
         onCallback!(callbackValue);
       });
     } else {
-      print(
+      outputLogger.i(
           "TUIKit Callback: ${callbackValue.type} - ${callbackValue.stackTrace}");
     }
   }
@@ -285,28 +292,50 @@ class CoreServicesImpl implements CoreServices {
     isLoginSuccess = true;
     addInitListener();
     initDataModel();
+
+    if (TencentUtils.checkString(_userID) == null) {
+      V2TimValueCallback<String> getLoginUserRes =
+          await TencentImSDKPlugin.v2TIMManager.getLoginUser();
+      if (getLoginUserRes.code == 0) {
+        _userID = getLoginUserRes.data ?? "";
+      }
+    }
+
+    getUsersInfoWithRetry();
+  }
+
+  void getUsersInfoWithRetry() async {
+    V2TimValueCallback<List<V2TimUserFullInfo>>? res;
+    bool success = false;
+
+    while (!success) {
+      res = await getUsersInfo(userIDList: [_userID]);
+      if (res.code == 0 &&
+          res.data != null &&
+          res.data!.isNotEmpty &&
+          res.data!.firstWhereOrNull((element) => element.userID == _userID) !=
+              null) {
+        success = true;
+      } else {
+        await Future.delayed(const Duration(seconds: 2));
+      }
+    }
+
+    _loginInfo =
+        res?.data!.firstWhereOrNull((element) => element.userID == _userID);
     final TUISelfInfoViewModel selfInfoViewModel =
         serviceLocator<TUISelfInfoViewModel>();
-    getUsersInfo(userIDList: [_userID]).then((res) => {
-          if (res.code == 0)
-            {
-              _loginInfo = res.data![0],
-              selfInfoViewModel.setLoginInfo(_loginInfo!)
-            }
-        });
+    if (_loginInfo != null) {
+      selfInfoViewModel.setLoginInfo(_loginInfo);
+    }
   }
 
   // Deprecated
   void didLoginOut() {
     removeListener();
     clearData();
-    getUsersInfo(userIDList: [_userID]).then((res) => {
-          if (res.code == 0)
-            {
-              _loginInfo = res.data![0],
-              serviceLocator<TUISelfInfoViewModel>().setLoginInfo(_loginInfo!)
-            }
-        });
+    _loginInfo = null;
+    serviceLocator<TUISelfInfoViewModel>().setLoginInfo(_loginInfo);
   }
 
   @override

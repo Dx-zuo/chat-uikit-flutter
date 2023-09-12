@@ -1,4 +1,4 @@
-// ignore_for_file: avoid_print
+// ignore_for_file: avoid_print, empty_catches
 
 import 'package:flutter/cupertino.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
@@ -51,17 +51,21 @@ class TIMUIKitChatController {
     return model?.clearHistory();
   }
 
-  /// refresh the history message list manually;
-  /// Please provide `convType` and `convID`, if you use `TIMUIKitChatController` without specifying to a `TIMUIKitChat`.
+  /// Refresh the history message list manually;
   Future<bool> refreshCurrentHistoryList(
       [String? convID, ConvType? convType]) async {
-    if (convID != null && convType != null) {
-      return globalChatModel.refreshCurrentHistoryListForConversation(
-          count: 50, convID: convID, convType: convType);
-    } else if (model != null) {
+    if(model != null){
+      try{
+        scrollController?.animateTo(
+          scrollController!.position.minScrollExtent,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.ease,
+        );
+      }catch(e){}
       return model!.loadDataFromController();
+    } else {
+      return false;
     }
-    return false;
   }
 
   /// Update single message at UI model
@@ -139,11 +143,13 @@ class TIMUIKitChatController {
       assert(groupID != null || convType != ConvType.group);
       assert(userID != null || convType != ConvType.c2c);
       if (isNavigateToMessageListBottom && scrollController != null) {
-        scrollController!.animateTo(
-          scrollController!.position.minScrollExtent,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.ease,
-        );
+        try{
+          scrollController?.animateTo(
+            scrollController!.position.minScrollExtent,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.ease,
+          );
+        }catch(e){}
       }
       return globalChatModel.sendMessageFromController(
           priority: priority,
@@ -160,11 +166,13 @@ class TIMUIKitChatController {
     } else if (model != null) {
       /// Sends a message to the current conversation specified on `TIMUIKitChat`. 发送到 `TIMUIKitChat` 中指定的当前对话。
       if (isNavigateToMessageListBottom && scrollController != null) {
-        scrollController?.animateTo(
-          scrollController!.position.minScrollExtent,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.ease,
-        );
+        try{
+          scrollController?.animateTo(
+            scrollController!.position.minScrollExtent,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.ease,
+          );
+        }catch(e){}
       }
       return model!.sendMessageFromController(
           priority: priority,
@@ -230,11 +238,13 @@ class TIMUIKitChatController {
       assert(groupID != null || convType != ConvType.group);
       assert(userID != null || convType != ConvType.c2c);
       if (isNavigateToMessageListBottom && scrollController != null) {
-        scrollController!.animateTo(
-          scrollController!.position.minScrollExtent,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.ease,
-        );
+        try{
+          scrollController?.animateTo(
+            scrollController!.position.minScrollExtent,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.ease,
+          );
+        }catch(e){}
       }
       return globalChatModel.sendReplyMessageFromController(
           text: messageText,

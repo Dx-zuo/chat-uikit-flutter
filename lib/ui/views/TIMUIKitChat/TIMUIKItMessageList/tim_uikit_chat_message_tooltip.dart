@@ -5,7 +5,9 @@ import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_clipboard/image_clipboard.dart';
 import 'package:provider/provider.dart';
+import 'package:tencent_cloud_chat_uikit/business_logic/view_models/tui_self_info_view_model.dart';
 import 'package:tencent_cloud_chat_uikit/data_services/services_locatar.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/common_utils.dart';
 import 'package:tencent_cloud_chat_uikit/ui/utils/message.dart';
@@ -79,8 +81,10 @@ class TIMUIKitMessageTooltip extends StatefulWidget {
 class TIMUIKitMessageTooltipState
     extends TIMUIKitState<TIMUIKitMessageTooltip> {
   final TUIChatGlobalModel globalModal = serviceLocator<TUIChatGlobalModel>();
+  final TUISelfInfoViewModel selfInfoViewModel =
+      serviceLocator<TUISelfInfoViewModel>();
   bool isShowMoreSticker = false;
-  bool isShowOpenFile = false;
+  bool fileBeenDownloaded = false;
   String filePath = "";
 
   @override
@@ -95,34 +99,24 @@ class TIMUIKitMessageTooltipState
         (widget.message.fileElem == null &&
             widget.message.imageElem == null &&
             widget.message.videoElem == null)) {
-      isShowOpenFile = false;
+      fileBeenDownloaded = false;
       return;
     }
     if (PlatformUtils().isWeb) {
-      isShowOpenFile = true;
+      fileBeenDownloaded = true;
       return;
     }
     if (PlatformUtils().isDesktop) {
       if (widget.message.fileElem != null) {
-        if (globalModal.getMessageProgress(widget.message.msgID) == 100) {
-          String savePath =
-              TencentUtils.checkString(widget.message.fileElem!.localUrl) ??
-                  globalModal.getFileMessageLocation(widget.message.msgID);
-          File f = File(savePath);
-          if (f.existsSync() && widget.message.msgID != null) {
-            filePath = savePath;
-            isShowOpenFile = true;
-            return;
-          }
-          isShowOpenFile = false;
-          return;
-        }
-        String savePath = widget.message.fileElem!.localUrl ?? '';
+        String savePath = TencentUtils.checkString(
+                globalModal.getFileMessageLocation(widget.message.msgID)) ??
+            TencentUtils.checkString(widget.message.fileElem!.localUrl) ??
+            widget.message.fileElem?.path ??
+            "";
         File f = File(savePath);
         if (f.existsSync() && widget.message.msgID != null) {
           filePath = savePath;
-          globalModal.setMessageProgress(widget.message.msgID!, 100);
-          isShowOpenFile = true;
+          fileBeenDownloaded = true;
           return;
         }
       } else if (widget.message.imageElem != null) {
@@ -131,19 +125,19 @@ class TIMUIKitMessageTooltipState
                 null &&
             File(widget.message.imageElem!.imageList![0]!.localUrl!)
                 .existsSync()) {
-          isShowOpenFile = true;
+          fileBeenDownloaded = true;
           return;
         }
       } else if (widget.message.videoElem != null) {
         if (TencentUtils.checkString(widget.message.videoElem!.localVideoUrl) !=
                 null &&
             File(widget.message.videoElem!.localVideoUrl!).existsSync()) {
-          isShowOpenFile = true;
+          fileBeenDownloaded = true;
           return;
         }
       }
     }
-    isShowOpenFile = false;
+    fileBeenDownloaded = false;
   }
 
   bool isRevocable(int timestamp, int upperTimeLimit) =>
@@ -189,9 +183,10 @@ class TIMUIKitMessageTooltipState
   }
 
   bool isAdminCanRecall() {
-    if (widget.groupMemberInfo != null &&
-        widget.model.chatConfig.isGroupAdminRecallEnabled) {
-      final selfRole = widget.groupMemberInfo!.role;
+    if (widget.model.chatConfig.isGroupAdminRecallEnabled) {
+      final selfMemberInfo =
+          widget.groupMemberInfo ?? widget.model.selfMemberInfo;
+      final selfRole = selfMemberInfo?.role;
       return selfRole == GroupMemberRoleType.V2TIM_GROUP_MEMBER_ROLE_ADMIN ||
           selfRole == GroupMemberRoleType.V2TIM_GROUP_MEMBER_ROLE_OWNER;
     } else {
@@ -212,24 +207,31 @@ class TIMUIKitMessageTooltipState
     final shouldShowForwardAction = !(widget.message.customElem?.data != null &&
         MessageUtils.isCallingData(widget.message.customElem!.data!));
     final tooltipsConfig = widget.toolTipsConfig;
+    final messageCanCopy = widget.message.elemType ==
+            MessageElemType.V2TIM_ELEM_TYPE_TEXT ||
+        (isDesktopScreen &&
+            widget.message.elemType == MessageElemType.V2TIM_ELEM_TYPE_IMAGE &&
+            fileBeenDownloaded);
+
     final List<MessageToolTipItem> defaultTipsList = [
-      if (isShowOpenFile)
+      if (fileBeenDownloaded)
         MessageToolTipItem(
             label: TIM_t("打开"),
             id: "open",
             iconImageAsset: "images/open_in_new.png",
             onClick: () => _onTap("open", model)),
-      if (isShowOpenFile && PlatformUtils().isDesktop)
+      if (fileBeenDownloaded && PlatformUtils().isDesktop)
         MessageToolTipItem(
             label: PlatformUtils().isMacOS ? TIM_t("在访达中打开") : TIM_t("查看文件夹"),
             id: "finder",
             iconImageAsset: "images/folder_open.png",
             onClick: () => _onTap("finder", model)),
-      MessageToolTipItem(
-          label: TIM_t("复制"),
-          id: "copyMessage",
-          iconImageAsset: "images/copy_message.png",
-          onClick: () => _onTap("copyMessage", model)),
+      if (messageCanCopy)
+        MessageToolTipItem(
+            label: TIM_t("复制"),
+            id: "copyMessage",
+            iconImageAsset: "images/copy_message.png",
+            onClick: () => _onTap("copyMessage", model)),
       if (shouldShowForwardAction && !isVoteMessage(widget.message))
         MessageToolTipItem(
             label: TIM_t("转发"),
@@ -270,8 +272,7 @@ class TIMUIKitMessageTooltipState
       defaultFormattedTipsList = defaultTipsList.where((element) {
         final type = element.id;
         if (type == "copyMessage") {
-          return tooltipsConfig.showCopyMessage &&
-              widget.message.elemType == MessageElemType.V2TIM_ELEM_TYPE_TEXT;
+          return tooltipsConfig.showCopyMessage;
         }
         if (type == "forwardMessage") {
           return tooltipsConfig.showForwardMessage &&
@@ -399,14 +400,20 @@ class TIMUIKitMessageTooltipState
   }
 
   _onOpenDesktop(String path) {
-    if (PlatformUtils().isDesktop) {
-      OpenFile.open(path);
-    } else {
-      launchUrl(
-        Uri.parse(path),
-        mode: LaunchMode.externalApplication,
-      );
-    }
+    try {
+      if (PlatformUtils().isDesktop && !PlatformUtils().isWindows) {
+        launchUrl(Uri.file(path));
+      } else {
+        OpenFile.open(path);
+      }
+      // ignore: empty_catches
+    } catch (e) {}
+  }
+
+  Future<void> copyImageToClipboard(String imagePath) async {
+    ImageClipboard().copyImage(imagePath);
+    // final DesktopClipboard desktopClipboard = DesktopClipboard();
+    // desktopClipboard.copyImage(imagePath);
   }
 
   _onTap(String operation, TUIChatSeparateViewModel model) async {
@@ -415,32 +422,40 @@ class TIMUIKitMessageTooltipState
     switch (operation) {
       case "open":
         if (widget.message.fileElem != null) {
-          _onOpenDesktop(widget.message.fileElem!.localUrl ??
+          _onOpenDesktop(TencentUtils.checkString(
+                  globalModal.getFileMessageLocation(widget.message.msgID)) ??
+              TencentUtils.checkString(widget.message.fileElem!.localUrl) ??
               widget.message.fileElem?.path ??
               "");
         } else if (widget.message.imageElem != null) {
-          _onOpenDesktop(widget.message.imageElem!.imageList?[0]?.localUrl ??
-              widget.message.imageElem?.path ??
+          _onOpenDesktop(TencentUtils.checkString(
+                  widget.message.imageElem!.imageList?[0]?.localUrl) ??
+              TencentUtils.checkString(widget.message.imageElem?.path) ??
               "");
         } else if (widget.message.videoElem != null) {
-          _onOpenDesktop(widget.message.videoElem!.localVideoUrl ??
-              widget.message.videoElem?.videoPath ??
+          _onOpenDesktop(TencentUtils.checkString(
+                  widget.message.videoElem!.localVideoUrl) ??
+              TencentUtils.checkString(widget.message.videoElem?.videoPath) ??
               "");
         }
         break;
       case "finder":
         String savePath = "";
         if (widget.message.fileElem != null) {
-          savePath = (widget.message.fileElem!.localUrl ??
+          savePath = (TencentUtils.checkString(
+                  globalModal.getFileMessageLocation(widget.message.msgID)) ??
+              TencentUtils.checkString(widget.message.fileElem!.localUrl) ??
               widget.message.fileElem?.path ??
               "");
         } else if (widget.message.imageElem != null) {
-          savePath = (widget.message.imageElem!.imageList?[0]?.localUrl ??
-              widget.message.imageElem?.path ??
+          savePath = (TencentUtils.checkString(
+                  widget.message.imageElem!.imageList?[0]?.localUrl) ??
+              TencentUtils.checkString(widget.message.imageElem?.path) ??
               "");
         } else if (widget.message.videoElem != null) {
-          savePath = (widget.message.videoElem!.localVideoUrl ??
-              widget.message.videoElem?.videoPath ??
+          savePath = (TencentUtils.checkString(
+                  widget.message.videoElem!.localVideoUrl) ??
+              TencentUtils.checkString(widget.message.videoElem?.videoPath) ??
               "");
         }
         final String fileDir = path.dirname(savePath);
@@ -484,6 +499,13 @@ class TIMUIKitMessageTooltipState
                 infoCode: 6660408));
             // ignore: empty_catches
           } catch (e) {}
+        } else if (widget.message.elemType ==
+            MessageElemType.V2TIM_ELEM_TYPE_IMAGE) {
+          final savePath = (TencentUtils.checkString(
+              widget.message.imageElem!.imageList?[0]?.localUrl) ??
+              TencentUtils.checkString(widget.message.imageElem?.path) ??
+              "");
+          copyImageToClipboard(savePath);
         }
         break;
       case "replyMessage":

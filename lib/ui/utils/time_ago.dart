@@ -1,7 +1,7 @@
 // ignore_for_file: prefer_typing_uninitialized_variables
 
 import 'package:intl/intl.dart';
-import 'package:tencent_im_base/i18n/i18n_utils.dart';
+import 'package:tencent_cloud_chat_uikit/tencent_cloud_chat_uikit.dart';
 
 class TimeAgo {
   List<String> dayMap() {
@@ -46,8 +46,14 @@ class TimeAgo {
         date;
   }
 
-  String getTimeStringForChat(int timeStamp) {
+  String? getTimeStringForChat(int timeStamp) {
     final DateTime date = DateTime.fromMillisecondsSinceEpoch(timeStamp * 1000);
+    final DateTime epochLimit = DateTime.utc(1971);
+
+    if (date.isBefore(epochLimit)) {
+      return null;
+    }
+
     final Duration duration = DateTime.now().difference(date);
     final int diffDays = duration.inDays +
         (duration.inMinutes >

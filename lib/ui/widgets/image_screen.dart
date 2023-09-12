@@ -8,6 +8,10 @@ import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_state.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/gestured_image.dart';
 import 'package:tencent_cloud_chat_uikit/base_widgets/tim_ui_kit_base.dart';
 import 'package:tencent_cloud_chat_uikit/ui/widgets/image_hero.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:extended_image/src/gesture/page_view/image_qr_scan.dart';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
 
 typedef DoubleClickAnimationListener = void Function();
 
@@ -41,6 +45,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
   double fittedScale = 1.0;
   double initialScale = 1.0;
   bool isLoading = false;
+  GlobalKey _globalKey = GlobalKey();
 
   GlobalKey<ExtendedImageSlidePageState> slidePagekey =
       GlobalKey<ExtendedImageSlidePageState>();
@@ -85,152 +90,189 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
             constraints: BoxConstraints.expand(
               height: MediaQuery.of(context).size.height,
             ),
-            child: Stack(
-              alignment: Alignment.center,
-                children: [
+            child: Stack(alignment: Alignment.center, children: [
               Positioned(
                 top: 0,
                 left: 0,
                 bottom: 0,
                 right: 0,
                 child: ExtendedImageSlidePage(
-                  key: slidePagekey,
-                  slideAxis: SlideAxis.both,
-                  slidePageBackgroundHandler: (Offset offset, Size size) {
-                    if (orientation == Orientation.landscape) {
-                      return Colors.black;
-                    }
-                    double opacity = 0.0;
-                    opacity = offset.distance /
-                        (Offset(size.width, size.height).distance / 2.0);
-                    return Colors.black
-                        .withOpacity(min(1.0, max(1.0 - opacity, 0.0)));
-                  },
-                  slideType: SlideType.onlyImage,
-                  slideEndHandler: (
-                    Offset offset, {
-                    ExtendedImageSlidePageState? state,
-                    ScaleEndDetails? details,
-                  }) {
-                    final vy = details?.velocity.pixelsPerSecond.dy ?? 0;
-                    final oy = offset.dy;
-                    if (vy > 300 || oy > 100) {
-                      return true;
-                    }
-                    return null;
-                  },
-                  child: GestureDetector(
-                    onTap: close,
-                    child: HeroWidget(
-                        tag: widget.heroTag,
-                        slidePagekey: slidePagekey,
-                        child: ExtendedImage(
-                          image: widget.imageProvider,
-                          extendedImageGestureKey:
-                          extendedImageGestureKey,
-                          enableSlideOutPage: true,
-                          // fit: BoxFit.scaleDown,
-                          initGestureConfigHandler: (state) {
-                            return GestureConfig(
-                              minScale: 0.8,
-                              animationMinScale: 0.6,
-                              maxScale: 2 * fittedScale,
-                              animationMaxScale: 2.5 * fittedScale,
-                              speed: 1.0,
-                              inertialSpeed: 100.0,
-                              initialScale: initialScale,
-                              initialAlignment:
-                              InitialAlignment.topCenter,
-                              hitTestBehavior: HitTestBehavior.opaque,
-                            );
-                          },
-                          loadStateChanged: (ExtendedImageState state) {
-                            switch (state.extendedImageLoadState) {
-                              case LoadState.loading:
-                                return Container(
-                                    color: Colors.black,
-                                    child: const Center(
-                                        child: CircularProgressIndicator(
-                                            color: Colors.white))
+                    key: slidePagekey,
+                    slideAxis: SlideAxis.both,
+                    slidePageBackgroundHandler: (Offset offset, Size size) {
+                      if (orientation == Orientation.landscape) {
+                        return Colors.black;
+                      }
+                      double opacity = 0.0;
+                      opacity = offset.distance /
+                          (Offset(size.width, size.height).distance / 2.0);
+                      return Colors.black
+                          .withOpacity(min(1.0, max(1.0 - opacity, 0.0)));
+                    },
+                    slideType: SlideType.onlyImage,
+                    slideEndHandler: (
+                      Offset offset, {
+                      ExtendedImageSlidePageState? state,
+                      ScaleEndDetails? details,
+                    }) {
+                      final vy = details?.velocity.pixelsPerSecond.dy ?? 0;
+                      final oy = offset.dy;
+                      if (vy > 300 || oy > 100) {
+                        return true;
+                      }
+                      return null;
+                    },
+                    child: RepaintBoundary(
+                      key: _globalKey,
+                      child: GestureDetector(
+                        onTap: close,
+                        onLongPress: () {
+                          showCupertinoModalPopup<void>(
+                            context: context,
+                            builder: (BuildContext context) =>
+                                CupertinoActionSheet(
+                                    actions: <CupertinoActionSheetAction>[
+                                  CupertinoActionSheetAction(
+                                    isDefaultAction: true,
+                                    onPressed: () async {
+                                      Future<ui.Image?>
+                                          convertWidgetToImage() async {
+                                        RenderRepaintBoundary?
+                                            renderRepaintBoundary = _globalKey
+                                                    .currentContext
+                                                    ?.findRenderObject()
+                                                as RenderRepaintBoundary?;
+                                        var image = await renderRepaintBoundary
+                                            ?.toImage(pixelRatio: 1.0);
+                                        return image;
+                                      }
+
+                                      ui.Image? image =
+                                          await convertWidgetToImage();
+                                      if (image == null) {
+                                        return;
+                                      }
+                                      ImageQrScanCenter.instance
+                                          .onScanImage(image, context);
+                                      Navigator.pop(context);
+                                    },
+                                    child: const Text('识别二维码'),
+                                  ),
+                                ],
+                                    cancelButton: CupertinoActionSheetAction(
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                      },
+                                      child: const Text('取消'),
+                                    )),
+                          );
+                        },
+                        child: HeroWidget(
+                            tag: widget.heroTag,
+                            slidePagekey: slidePagekey,
+                            child: ExtendedImage(
+                              image: widget.imageProvider,
+                              extendedImageGestureKey: extendedImageGestureKey,
+                              enableSlideOutPage: true,
+                              // fit: BoxFit.scaleDown,
+                              initGestureConfigHandler: (state) {
+                                return GestureConfig(
+                                  minScale: 0.8,
+                                  animationMinScale: 0.6,
+                                  maxScale: 2 * fittedScale,
+                                  animationMaxScale: 2.5 * fittedScale,
+                                  speed: 1.0,
+                                  inertialSpeed: 100.0,
+                                  initialScale: initialScale,
+                                  initialAlignment: InitialAlignment.topCenter,
+                                  hitTestBehavior: HitTestBehavior.opaque,
                                 );
-                              case LoadState.completed:
-                                final screenHeight =
-                                    MediaQuery.of(context).size.height;
-                                final screenWidth =
-                                    MediaQuery.of(context).size.width;
-                                final imgHeight = state.extendedImageInfo
-                                    ?.image.height ??
-                                    1;
-                                final imgWidth = state
-                                    .extendedImageInfo?.image.width ??
-                                    0;
-                                final imgRatio = imgWidth / imgHeight;
-                                final screenRatio =
-                                    screenWidth / screenHeight;
-                                final fitWidthScale =
-                                    screenRatio / imgRatio;
-                                if (screenRatio > imgRatio) {
-                                  // Long Image
-                                  // initialScale = fitWidthScale;
-                                  fittedScale = fitWidthScale;
-                                  doubleTapScales[1] = fitWidthScale;
-                                } else {
-                                  fittedScale =
-                                      1 / fitWidthScale; // fittedHeight
-                                  doubleTapScales[1] = 1 / fitWidthScale;
+                              },
+                              loadStateChanged: (ExtendedImageState state) {
+                                switch (state.extendedImageLoadState) {
+                                  case LoadState.loading:
+                                    return Container(
+                                        color: Colors.black,
+                                        child: const Center(
+                                            child: CircularProgressIndicator(
+                                                color: Colors.white)));
+                                  case LoadState.completed:
+                                    final screenHeight =
+                                        MediaQuery.of(context).size.height;
+                                    final screenWidth =
+                                        MediaQuery.of(context).size.width;
+                                    final imgHeight =
+                                        state.extendedImageInfo?.image.height ??
+                                            1;
+                                    final imgWidth =
+                                        state.extendedImageInfo?.image.width ??
+                                            0;
+                                    final imgRatio = imgWidth / imgHeight;
+                                    final screenRatio =
+                                        screenWidth / screenHeight;
+                                    final fitWidthScale =
+                                        screenRatio / imgRatio;
+                                    if (screenRatio > imgRatio) {
+                                      // Long Image
+                                      // initialScale = fitWidthScale;
+                                      fittedScale = fitWidthScale;
+                                      doubleTapScales[1] = fitWidthScale;
+                                    } else {
+                                      fittedScale =
+                                          1 / fitWidthScale; // fittedHeight
+                                      doubleTapScales[1] = 1 / fitWidthScale;
+                                    }
+                                    return GesturedImage(state,
+                                        key: extendedImageGestureKey);
+                                  case LoadState.failed:
+                                    break;
                                 }
-                                return GesturedImage(state,
-                                    key: extendedImageGestureKey);
-                              case LoadState.failed:
-                                break;
-                            }
-                            return null;
-                          },
-                          onDoubleTap: (ExtendedImageGestureState state) {
-                            ///you can use define pointerDownPosition as you can,
-                            ///default value is double tap pointer down postion.
-                            final Offset? pointerDownPosition =
-                                state.pointerDownPosition;
-                            final double? begin =
-                                state.gestureDetails!.totalScale;
-                            double end;
+                                return null;
+                              },
+                              onDoubleTap: (ExtendedImageGestureState state) {
+                                ///you can use define pointerDownPosition as you can,
+                                ///default value is double tap pointer down postion.
+                                final Offset? pointerDownPosition =
+                                    state.pointerDownPosition;
+                                final double? begin =
+                                    state.gestureDetails!.totalScale;
+                                double end;
 
-                            //remove old
-                            _doubleClickAnimation?.removeListener(
-                                _doubleClickAnimationListener);
+                                //remove old
+                                _doubleClickAnimation?.removeListener(
+                                    _doubleClickAnimationListener);
 
-                            //stop pre
-                            _doubleClickAnimationController.stop();
+                                //stop pre
+                                _doubleClickAnimationController.stop();
 
-                            //reset to use
-                            _doubleClickAnimationController.reset();
+                                //reset to use
+                                _doubleClickAnimationController.reset();
 
-                            if (begin == doubleTapScales[0]) {
-                              end = doubleTapScales[1];
-                            } else {
-                              end = doubleTapScales[0];
-                            }
+                                if (begin == doubleTapScales[0]) {
+                                  end = doubleTapScales[1];
+                                } else {
+                                  end = doubleTapScales[0];
+                                }
 
-                            _doubleClickAnimationListener = () {
-                              //outputLogger.i(_animation.value);
-                              state.handleDoubleTap(
-                                  scale: _doubleClickAnimation!.value,
-                                  doubleTapPosition: pointerDownPosition);
-                            };
-                            _doubleClickAnimation =
-                                _doubleClickAnimationController.drive(
-                                    Tween<double>(
-                                        begin: begin, end: end));
+                                _doubleClickAnimationListener = () {
+                                  //outputLogger.i(_animation.value);
+                                  state.handleDoubleTap(
+                                      scale: _doubleClickAnimation!.value,
+                                      doubleTapPosition: pointerDownPosition);
+                                };
+                                _doubleClickAnimation =
+                                    _doubleClickAnimationController.drive(
+                                        Tween<double>(begin: begin, end: end));
 
-                            _doubleClickAnimation!.addListener(
-                                _doubleClickAnimationListener);
+                                _doubleClickAnimation!
+                                    .addListener(_doubleClickAnimationListener);
 
-                            _doubleClickAnimationController.forward();
-                          },
-                          mode: ExtendedImageMode.gesture,
-                        )),
-                  ),
-                ),
+                                _doubleClickAnimationController.forward();
+                              },
+                              mode: ExtendedImageMode.gesture,
+                            )),
+                      ),
+                    )),
               ),
               Positioned(
                   left: 10,
@@ -258,7 +300,7 @@ class _ImageScreenState extends TIMUIKitState<ImageScreen>
                         isLoading = true;
                       });
                       await widget.downloadFn!();
-                      Future.delayed(const Duration(milliseconds: 200),(){
+                      Future.delayed(const Duration(milliseconds: 200), () {
                         setState(() {
                           isLoading = false;
                         });
